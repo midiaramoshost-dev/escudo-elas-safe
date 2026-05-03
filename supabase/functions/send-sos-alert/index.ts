@@ -35,11 +35,20 @@ Deno.serve(async (req) => {
     // Get user profile
     const { data: profile } = await supabase
       .from('profiles')
-      .select('nome, telefone_celular')
+      .select('nome, telefone, telefone_celular, rua, numero, complemento, bairro, cidade, estado, cep')
       .eq('user_id', user_id)
       .single();
 
     const userName = profile?.nome || 'Usuária';
+    const userPhone = profile?.telefone_celular?.trim() || profile?.telefone?.trim() || 'não informado';
+    const enderecoPartes = [
+      [profile?.rua, profile?.numero].filter(Boolean).join(', '),
+      profile?.complemento,
+      profile?.bairro,
+      [profile?.cidade, profile?.estado].filter(Boolean).join(' - '),
+      profile?.cep,
+    ].filter((p) => p && String(p).trim().length > 0);
+    const enderecoText = enderecoPartes.length > 0 ? enderecoPartes.join(' • ') : 'não informado';
 
     // Get emergency contacts with telegram_chat_id
     const { data: contacts } = await supabase
