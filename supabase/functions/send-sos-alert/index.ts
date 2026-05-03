@@ -35,11 +35,20 @@ Deno.serve(async (req) => {
     // Get user profile
     const { data: profile } = await supabase
       .from('profiles')
-      .select('nome, telefone_celular')
+      .select('nome, telefone, telefone_celular, rua, numero, complemento, bairro, cidade, estado, cep')
       .eq('user_id', user_id)
       .single();
 
     const userName = profile?.nome || 'Usuária';
+    const userPhone = profile?.telefone_celular?.trim() || profile?.telefone?.trim() || 'não informado';
+    const enderecoPartes = [
+      [profile?.rua, profile?.numero].filter(Boolean).join(', '),
+      profile?.complemento,
+      profile?.bairro,
+      [profile?.cidade, profile?.estado].filter(Boolean).join(' - '),
+      profile?.cep,
+    ].filter((p) => p && String(p).trim().length > 0);
+    const enderecoText = enderecoPartes.length > 0 ? enderecoPartes.join(' • ') : 'não informado';
 
     // Get emergency contacts with telegram_chat_id
     const { data: contacts } = await supabase
@@ -55,16 +64,21 @@ Deno.serve(async (req) => {
     }
 
     let locationText = '';
-    if (latitude && longitude) {
-      locationText = `\n📍 Localização: https://www.google.com/maps?q=${latitude},${longitude}`;
+    if (typeof latitude === 'number' && typeof longitude === 'number') {
+      const lat = latitude.toFixed(6);
+      const lng = longitude.toFixed(6);
+      locationText =
+        `\n📍 Localização atual (GPS): https://www.google.com/maps?q=${lat},${lng}` +
+        `\n🧭 Coordenadas: ${lat}, ${lng}`;
     }
 
     const message = `🚨 <b>ALERTA SOS - VALKYRA</b> 🚨\n\n` +
       `Preciso da sua atenção e ajuda!\n\n` +
       `<b>${userName}</b> ativou um alerta de emergência!` +
       `${locationText}\n\n` +
-      `⚠️ Entre em contato imediatamente.\n` +
-      `📞 Telefone: ${profile?.telefone_celular || 'não informado'}`;
+      `🏠 Endereço cadastrado: ${enderecoText}\n` +
+      `📞 Telefone: ${userPhone}\n\n` +
+      `⚠️ Entre em contato imediatamente.`;
 
     let sentCount = 0;
     const errors: string[] = [];
