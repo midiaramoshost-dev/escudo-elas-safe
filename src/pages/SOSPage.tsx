@@ -56,6 +56,24 @@ const SOSPage = () => {
       } catch (e) {
         console.error("Error sending SOS alert notifications:", e);
       }
+      // Send FCM push notifications to nearby app users
+      try {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("nome")
+          .eq("user_id", user!.id)
+          .maybeSingle();
+        await supabase.functions.invoke("send-push-sos", {
+          body: {
+            latitude: lat,
+            longitude: lng,
+            nome_usuario: profile?.nome,
+            radius_km: 5,
+          },
+        });
+      } catch (e) {
+        console.error("Error sending push notifications:", e);
+      }
     };
 
     if (navigator.geolocation) {
