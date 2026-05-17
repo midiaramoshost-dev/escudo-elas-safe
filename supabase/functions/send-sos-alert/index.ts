@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { user_id, latitude, longitude } = await req.json();
+    const { user_id, latitude, longitude, accuracy } = await req.json();
 
     if (!user_id) {
       return new Response(JSON.stringify({ error: 'user_id is required' }), {
@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     // Get emergency contacts with telegram_chat_id
     const { data: contacts } = await supabase
       .from('contatos_emergencia')
-      .select('nome, telefone, telegram_chat_id')
+      .select('nome, telefone, relacao, telegram_chat_id')
       .eq('user_id', user_id);
 
     if (!contacts || contacts.length === 0) {
@@ -67,18 +67,14 @@ Deno.serve(async (req) => {
     if (typeof latitude === 'number' && typeof longitude === 'number') {
       const lat = latitude.toFixed(6);
       const lng = longitude.toFixed(6);
+      const accuracyText = typeof accuracy === 'number'
+        ? `\n🎯 Precisão do GPS: ±${Math.round(accuracy)} metros`
+        : '';
       locationText =
         `\n📍 Localização atual (GPS): https://www.google.com/maps?q=${lat},${lng}` +
-        `\n🧭 Coordenadas: ${lat}, ${lng}`;
+        `\n🧭 Coordenadas: ${lat}, ${lng}` +
+        accuracyText;
     }
-
-    const message = `🚨 <b>ALERTA SOS - VALKYRA</b> 🚨\n\n` +
-      `Preciso da sua atenção e ajuda!\n\n` +
-      `<b>${userName}</b> ativou um alerta de emergência!` +
-      `${locationText}\n\n` +
-      `🏠 Endereço cadastrado: ${enderecoText}\n` +
-      `📞 Telefone: ${userPhone}\n\n` +
-      `⚠️ Entre em contato imediatamente.`;
 
     let sentCount = 0;
     const errors: string[] = [];
@@ -86,6 +82,16 @@ Deno.serve(async (req) => {
     for (const contact of contacts) {
       const chatId = contact.telegram_chat_id?.trim();
       if (!chatId) continue;
+
+      const contactRelacao = contact.relacao?.trim() ? ` (${contact.relacao})` : '';
+      const message = `🚨 <b>ALERTA SOS - VALKYRA</b> 🚨\n\n` +
+        `Olá <b>${contact.nome}</b>${contactRelacao},\n` +
+        `Preciso da sua atenção e ajuda!\n\n` +
+        `<b>${userName}</b> ativou um alerta de emergência e indicou você como contato de emergência.` +
+        `${locationText}\n\n` +
+        `🏠 Endereço cadastrado: ${enderecoText}\n` +
+        `📞 Telefone: ${userPhone}\n\n` +
+        `⚠️ Entre em contato imediatamente.`;
 
       try {
         const response = await fetch(`${GATEWAY_URL}/sendMessage`, {
