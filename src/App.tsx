@@ -18,8 +18,14 @@ import PainelPage from "@/pages/PainelPage";
 import AdminPage from "@/pages/AdminPage";
 import AjudaPage from "@/pages/AjudaPage";
 import NotFound from "@/pages/NotFound";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 const queryClient = new QueryClient();
+
+const PushBootstrap = () => {
+  usePushNotifications();
+  return null;
+};
 
 const LoadingSpinner = () => (
   <div className="min-h-svh flex items-center justify-center bg-background">
@@ -71,6 +77,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <PushBootstrap />
           <Routes>
             <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
             <Route path="*" element={
